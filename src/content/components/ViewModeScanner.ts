@@ -95,7 +95,6 @@ export class ViewModeScanner {
      * Analyze page content using AI
      */
     private async analyzePageContent(): Promise<any> {
-        const aiService = AIServiceFactory.getInstance();
         const formDetector = new FormFieldDetector();
 
         // Get page content
@@ -109,12 +108,31 @@ export class ViewModeScanner {
             formFieldsCount: formFields.length
         });
 
-        // Generate AI analysis
-        const analysisResult = await aiService.analyzeWebpage(
-            pageContent.html,
-            pageContent.title,
-            pageContent.url
-        );
+        let analysisResult = '';
+
+        try {
+            // Check if AI is available
+            const isAIAvailable = await AIServiceFactory.isAvailable();
+            
+            if (isAIAvailable) {
+                const aiService = AIServiceFactory.getInstance();
+                
+                // Generate AI analysis
+                analysisResult = await aiService.analyzeWebpage(
+                    pageContent.html,
+                    pageContent.title,
+                    pageContent.url
+                );
+                
+                Logger.info('AI analysis completed successfully');
+            } else {
+                analysisResult = this.generateFallbackAnalysis(pageContent, formFields);
+                Logger.warn('AI not available, using fallback analysis');
+            }
+        } catch (error) {
+            Logger.error('AI analysis failed, using fallback:', error);
+            analysisResult = this.generateFallbackAnalysis(pageContent, formFields);
+        }
 
         return {
             aiAnalysis: analysisResult,
@@ -122,6 +140,36 @@ export class ViewModeScanner {
             pageInfo: pageContent,
             timestamp: Date.now()
         };
+    }
+
+    /**
+     * Generate fallback analysis when AI is not available
+     */
+    private generateFallbackAnalysis(pageContent: any, formFields: any[]): string {
+        const { title, url } = pageContent;
+        
+        let analysis = `**Page Summary**\n\n`;
+        analysis += `Title: ${title}\n`;
+        analysis += `URL: ${url}\n\n`;
+        
+        if (formFields.length > 0) {
+            analysis += `**Form Analysis**\n\n`;
+            analysis += `This page contains ${formFields.length} form field(s) that could be filled:\n\n`;
+            
+            formFields.forEach((field, index) => {
+                analysis += `${index + 1}. ${field.label || 'Unlabeled field'} (${field.type})`;
+                if (field.required) analysis += ` - Required`;
+                analysis += `\n`;
+            });
+            
+            analysis += `\n*Note: AI analysis is currently unavailable. Please ensure Chrome flags are enabled for Gemini Nano.*`;
+        } else {
+            analysis += `**Content Overview**\n\n`;
+            analysis += `This page appears to be informational content without detectable form fields.\n\n`;
+            analysis += `*Note: AI analysis is currently unavailable. Please ensure Chrome flags are enabled for Gemini Nano to get detailed page insights.*`;
+        }
+        
+        return analysis;
     }
 
     /**

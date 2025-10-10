@@ -16,10 +16,14 @@ export class PromptAPIService {
                 return false;
             }
 
-            const capabilities = await LanguageModel.capabilities();
-            Logger.info('AI Capabilities:', capabilities);
-
-            return capabilities.available === 'readily' || capabilities.available === 'after-download';
+            // Updated API: Try to create a test session to check availability
+            const testSession = await LanguageModel.create();
+            if (testSession) {
+                testSession.destroy(); // Clean up test session
+                Logger.info('AI Language Model is available and ready');
+                return true;
+            }
+            return false;
         } catch (error) {
             Logger.error('Error checking AI availability:', error);
             return false;
@@ -54,16 +58,10 @@ export class PromptAPIService {
      */
     private async createSession(mode: AIMode, context?: any): Promise<LanguageModelSession> {
         return this.fetchWithRetry(async () => {
-            const systemPrompt = SystemPrompts.getSystemPrompt(mode, context);
-            
             Logger.info(`Creating AI session for mode: ${mode}`);
-            Logger.debug('System prompt:', systemPrompt);
-
-            const session = await LanguageModel.create({
-                systemPrompt,
-                temperature: 0.7, // Balanced creativity and consistency
-                topK: 40 // Good variety in responses
-            });
+            
+            // Simplified session creation matching working implementation
+            const session = await LanguageModel.create();
 
             Logger.info('AI session created successfully');
             return session;
@@ -87,15 +85,20 @@ export class PromptAPIService {
         let session: LanguageModelSession | null = null;
         
         try {
-            // Create session with mode-specific system prompt
+            // Create session 
             session = await this.createSession(mode, context);
             
             Logger.info(`Generating content for mode: ${mode}`);
-            Logger.debug('User prompt:', prompt);
+            
+            // Combine system prompt with user prompt
+            const systemPrompt = SystemPrompts.getSystemPrompt(mode, context);
+            const finalPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+            
+            Logger.debug('Final prompt:', finalPrompt);
 
             // Generate response with retry mechanism
             const response = await this.fetchWithRetry(() => 
-                session!.prompt(prompt)
+                session!.prompt(finalPrompt)
             );
 
             Logger.info('Content generated successfully');

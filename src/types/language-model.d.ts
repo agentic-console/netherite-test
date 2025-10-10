@@ -19,7 +19,6 @@ export interface LanguageModelCreateOptions {
 }
 
 export interface AILanguageModel {
-  capabilities(): Promise<LanguageModelCapabilities>;
   create(options?: LanguageModelCreateOptions): Promise<LanguageModelSession>;
 }
 
