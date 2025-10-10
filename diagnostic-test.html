@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netherite Extension - Diagnostic Test</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .status {
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fef2f2; color: #dc2626; }
+        .warning { background: #fefce8; color: #a16207; }
+        .info { background: #eff6ff; color: #1d4ed8; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        button:hover { background: #2563eb; }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        #log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Netherite Extension - Diagnostic Test Page</h1>
+    <p>Use this page to test if your Netherite Chrome Extension is working correctly.</p>
+
+    <div class="test-section">
+        <h2>1. Extension Detection</h2>
+        <p>Test if the extension is loaded and responding.</p>
+        <button onclick="testExtensionLoaded()">Test Extension</button>
+        <button onclick="testActivation()">Test Alt+N Activation</button>
+        <div id="extension-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. AI Availability Check</h2>
+        <p>Verify Chrome's Built-in AI (Gemini Nano) is available.</p>
+        <button onclick="testAIAvailability()">Check AI Status</button>
+        <button onclick="testAISession()">Test AI Session</button>
+        <div id="ai-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Form Detection Test</h2>
+        <p>Test form field detection on this sample form.</p>
+        <form id="test-form">
+            <p><label>Name: <input type="text" name="name" placeholder="Enter your name"></label></p>
+            <p><label>Email: <input type="email" name="email" placeholder="your@email.com"></label></p>
+            <p><label>Message: <textarea name="message" placeholder="Your message here..."></textarea></label></p>
+            <p><label>Country: <select name="country">
+                <option value="">Select Country</option>
+                <option value="us">United States</option>
+                <option value="uk">United Kingdom</option>
+                <option value="ca">Canada</option>
+            </select></label></p>
+            <p><label><input type="checkbox" name="agree"> I agree to the terms</label></p>
+        </form>
+        <button onclick="testFormDetection()">Test Form Detection</button>
+        <div id="form-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Browser Requirements</h2>
+        <p>Check if your browser meets the requirements.</p>
+        <button onclick="testBrowserRequirements()">Check Requirements</button>
+        <div id="browser-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Diagnostic Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="exportLog()">Export Log</button>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let logContent = '';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logContent += logMessage;
+            document.getElementById('log').textContent = logContent;
+            document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+        }
+
+        function clearLog() {
+            logContent = '';
+            document.getElementById('log').textContent = '';
+        }
+
+        function exportLog() {
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `netherite-diagnostic-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function testExtensionLoaded() {
+            log('Testing extension detection...');
+            
+            // Check if content script is injected
+            const hasNetheriteElements = document.querySelectorAll('[data-netherite]').length > 0;
+            
+            if (hasNetheriteElements) {
+                updateStatus('extension-status', '✅ Extension detected and loaded', 'success');
+                log('Extension detected successfully', 'success');
+            } else {
+                updateStatus('extension-status', '❌ Extension not detected. Please check installation.', 'error');
+                log('Extension not detected. Check chrome://extensions/', 'error');
+            }
+        }
+
+        function testActivation() {
+            log('Testing Alt+N activation...');
+            updateStatus('extension-status', '⏳ Press Alt+N now to test activation...', 'info');
+            
+            // Listen for toolbar activation
+            let activated = false;
+            const timeout = setTimeout(() => {
+                if (!activated) {
+                    updateStatus('extension-status', '❌ Alt+N activation failed or timed out', 'error');
+                    log('Alt+N activation timed out', 'error');
+                }
+            }, 10000);
+
+            // Check for toolbar elements
+            const checkInterval = setInterval(() => {
+                const toolbar = document.querySelector('[data-netherite-toolbar]');
+                if (toolbar) {
+                    activated = true;
+                    clearTimeout(timeout);
+                    clearInterval(checkInterval);
+                    updateStatus('extension-status', '✅ Alt+N activation successful!', 'success');
+                    log('Alt+N activation successful', 'success');
+                }
+            }, 100);
+        }
+
+        async function testAIAvailability() {
+            log('Testing AI availability...');
+            
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    updateStatus('ai-status', '❌ LanguageModel API not available. Check Chrome flags.', 'error');
+                    log('LanguageModel API not found', 'error');
+                    return;
+                }
+
+                log('LanguageModel API found, checking capabilities...');
+                const capabilities = await LanguageModel.capabilities();
+                log(`AI Capabilities: ${JSON.stringify(capabilities)}`);
+
+                if (capabilities.available === 'readily') {
+                    updateStatus('ai-status', '✅ AI ready and available!', 'success');
+                    log('AI is ready for use', 'success');
+                } else if (capabilities.available === 'after-download') {
+                    updateStatus('ai-status', '⏳ AI available after download. Please wait...', 'warning');
+                    log('AI model needs to be downloaded', 'warning');
+                } else {
+                    updateStatus('ai-status', '❌ AI not available on this system', 'error');
+                    log('AI not available', 'error');
+                }
+            } catch (error) {
+                updateStatus('ai-status', `❌ AI test failed: ${error.message}`, 'error');
+                log(`AI test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAISession() {
+            log('Testing AI session creation...');
+            
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    updateStatus('ai-status', '❌ LanguageModel not available', 'error');
+                    return;
+                }
+
+                log('Creating AI session...');
+                const session = await LanguageModel.create();
+                log('AI session created successfully');
+
+                log('Testing AI prompt...');
+                const response = await session.prompt('Hello! Please respond with "AI is working correctly"');
+                log(`AI Response: ${response}`);
+
+                session.destroy();
+                log('AI session destroyed');
+
+                updateStatus('ai-status', '✅ AI session test successful!', 'success');
+                
+            } catch (error) {
+                updateStatus('ai-status', `❌ AI session failed: ${error.message}`, 'error');
+                log(`AI session error: ${error.message}`, 'error');
+            }
+        }
+
+        function testFormDetection() {
+            log('Testing form field detection...');
+            
+            const form = document.getElementById('test-form');
+            const fields = form.querySelectorAll('input, textarea, select');
+            
+            log(`Found ${fields.length} form fields`);
+            
+            fields.forEach((field, index) => {
+                const fieldInfo = {
+                    type: field.type || field.tagName.toLowerCase(),
+                    name: field.name,
+                    placeholder: field.placeholder,
+                    required: field.required
+                };
+                log(`Field ${index + 1}: ${JSON.stringify(fieldInfo)}`);
+            });
+
+            updateStatus('form-status', `✅ Detected ${fields.length} form fields`, 'success');
+        }
+
+        function testBrowserRequirements() {
+            log('Checking browser requirements...');
+            
+            const isChrome = /Chrome/.test(navigator.userAgent);
+            const isCanary = navigator.userAgent.includes('Chrome/') && window.chrome;
+            
+            let status = '';
+            let type = 'success';
+
+            if (!isChrome) {
+                status = '❌ Not using Chrome browser';
+                type = 'error';
+                log('Browser is not Chrome', 'error');
+            } else {
+                status = '✅ Chrome browser detected';
+                log('Chrome browser confirmed', 'success');
+            }
+
+            // Check for experimental features
+            if (typeof LanguageModel !== 'undefined') {
+                status += '<br>✅ Experimental AI features enabled';
+                log('Experimental AI features are enabled', 'success');
+            } else {
+                status += '<br>❌ Experimental AI features not enabled';
+                type = 'error';
+                log('Experimental AI features not enabled - check chrome://flags/', 'error');
+            }
+
+            updateStatus('browser-status', status, type);
+        }
+
+        // Auto-run some tests on page load
+        window.addEventListener('load', () => {
+            log('Netherite diagnostic page loaded');
+            log('Run tests using the buttons above');
+            
+            // Auto-check browser requirements
+            setTimeout(testBrowserRequirements, 500);
+        });
+
+        // Listen for keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            if (event.altKey && event.key === 'n') {
+                log('Alt+N detected!', 'success');
+            }
+        });
+    </script>
+</body>
+</html>

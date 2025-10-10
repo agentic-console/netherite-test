@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Permissions-Policy meta tag remains to allow access to experimental features -->
+    <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
+    <title>Gemini Nano Task Switcher Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 95%;
+            width: 700px;
+        }
+        .text-available { background-color: #10b981; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Gemini Nano Task Switcher Demo</h1>
+
+    <!-- Status Indicator -->
+    <div class="mb-6 p-3 rounded-lg flex items-center justify-center text-white font-semibold text-sm text-available">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        API Status: AVAILABLE (Model Ready)
+    </div>
+
+    <!-- Task Selector -->
+    <div class="mb-4">
+        <label for="taskSelector" class="block text-sm font-medium text-gray-700 mb-2">Select Task:</label>
+        <select id="taskSelector" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            <option value="prompt">General Prompting (e.g., Q&A)</option>
+            <option value="summarize">Summarize Text</option>
+            <option value="write">Creative Writing (e.g., Poem, Story)</option>
+        </select>
+    </div>
+
+    <!-- Input for General Prompting/Writing -->
+    <div id="promptContainer" class="mb-4">
+        <label for="promptInput" class="block text-sm font-medium text-gray-700 mb-2">Enter your prompt or writing instruction:</label>
+        <textarea id="promptInput" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150" placeholder="Write a short, funny poem about a cat named Mittens..."></textarea>
+    </div>
+
+    <!-- Input for Summarization (Hidden by default) -->
+    <div id="summaryContainer" class="mb-4 hidden">
+        <label for="summaryInput" class="block text-sm font-medium text-gray-700 mb-2">Text to Summarize:</label>
+        <textarea id="summaryInput" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150" placeholder="Paste the long article, document, or paragraph you want summarized here."></textarea>
+       
+        <!-- NEW: Summary Length Selector -->
+        <div class="mt-4">
+            <label for="summaryLength" class="block text-sm font-medium text-gray-700 mb-2">Summary Length:</label>
+            <select id="summaryLength" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                <option value="very concise (1-2 sentences)">Short</option>
+                <option value="brief (3-4 sentences)" selected>Medium</option>
+                <option value="detailed (1-2 paragraphs)">Long</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Action Button -->
+    <button id="generateButton" class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 shadow-md" onclick="generateContent()">
+        <span id="buttonText">Generate Content with Gemini Nano</span>
+        <div id="loadingIndicator" class="loader"></div>
+    </button>
+
+    <!-- Response Area -->
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Response:</h2>
+        <div id="responseOutput" class="min-h-[100px] p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 whitespace-pre-wrap">
+            The generated response will appear here based on the selected task.
+        </div>
+    </div>
+</div>
+
+<script>
+    const taskSelector = document.getElementById('taskSelector');
+    const promptContainer = document.getElementById('promptContainer');
+    const summaryContainer = document.getElementById('summaryContainer');
+    const promptInput = document.getElementById('promptInput');
+    const summaryInput = document.getElementById('summaryInput');
+    // ADDED: New element for length control
+    const summaryLength = document.getElementById('summaryLength');
+    const generateButton = document.getElementById('generateButton');
+    const responseOutput = document.getElementById('responseOutput');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const buttonText = document.getElementById('buttonText');
+
+    // --- UI Toggle Function ---
+    function toggleInputFields() {
+        const selectedTask = taskSelector.value;
+        if (selectedTask === 'summarize') {
+            promptContainer.classList.add('hidden');
+            summaryContainer.classList.remove('hidden');
+        } else {
+            promptContainer.classList.remove('hidden');
+            summaryContainer.classList.add('hidden');
+        }
+        // Set context-specific placeholder for the remaining visible input
+        if (selectedTask === 'write') {
+             promptInput.placeholder = "Write a short story about a robot chef, or a poem about space.";
+        } else if (selectedTask === 'prompt') {
+            promptInput.placeholder = "What is the capital of France? Or, explain how photosynthesis works.";
+        }
+    }
+
+    // Attach listener to task selector
+    taskSelector.addEventListener('change', toggleInputFields);
+
+
+    // Utility function for exponential backoff during API calls (for robustness)
+    async function fetchWithRetry(apiCall, maxRetries = 5, delay = 1000) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                return await apiCall();
+            } catch (error) {
+                if (i === maxRetries - 1) {
+                    throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+            }
+        }
+    }
+
+    /**
+     * Main function to create a text session and generate content using Gemini Nano.
+     * The prompt sent to the model is dynamically generated based on the selected task.
+     */
+    async function generateContent() {
+        if (typeof LanguageModel === 'undefined') {
+            responseOutput.textContent = 'Error: LanguageModel API is not available in this browser. Please check Chrome Canary flags.';
+            return;
+        }
+       
+        const selectedTask = taskSelector.value;
+        let finalPrompt = '';
+       
+        // --- 1. Construct the Final Prompt based on the task ---
+        if (selectedTask === 'summarize') {
+            const textToSummarize = summaryInput.value.trim();
+            // READ: Get the desired length from the new selector
+            const desiredLength = summaryLength.value;
+
+            if (!textToSummarize) {
+                responseOutput.textContent = 'Please paste the text you wish to summarize.';
+                return;
+            }
+            // MODIFIED: By including the length instruction in the prompt, we guide the model's output
+            finalPrompt = `Please provide a ${desiredLength} summary of the following text: \n\n${textToSummarize}`;
+
+        } else if (selectedTask === 'write') {
+            const instruction = promptInput.value.trim();
+            if (!instruction) {
+                responseOutput.textContent = 'Please enter a writing instruction.';
+                return;
+            }
+            // Guide the model toward creative generation
+            finalPrompt = `Act as a creative writer. Fulfill this request: ${instruction}`;
+
+        } else { // 'prompt' (General Q&A/Instruction)
+            finalPrompt = promptInput.value.trim();
+            if (!finalPrompt) {
+                responseOutput.textContent = 'Please enter a prompt.';
+                return;
+            }
+        }
+
+
+        // --- 2. UI State: Start Loading ---
+        generateButton.disabled = true;
+        buttonText.textContent = 'Generating...';
+        loadingIndicator.style.display = 'block';
+        responseOutput.textContent = 'Connecting to local model...';
+
+
+        let session;
+        try {
+            // 3. Create the Text Session
+            session = await fetchWithRetry(() => LanguageModel.create());
+            responseOutput.textContent = `Session created for task: ${selectedTask}. Sending prompt...`;
+           
+            // 4. Send the Prompt and get the response
+            const response = await fetchWithRetry(() => session.prompt(finalPrompt));
+           
+            // 5. Update UI with Response
+            responseOutput.textContent = response;
+
+        } catch (error) {
+            // Handle any generation errors
+            responseOutput.textContent = `Error during generation: ${error.message}.`;
+            console.error("Gemini Nano Generation Error:", error);
+           
+        } finally {
+            // 6. Clean up the session (critical for resource management)
+            if (session) {
+                session.destroy();
+            }
+
+            // 7. UI State: Stop Loading
+            generateButton.disabled = false;
+            buttonText.textContent = 'Generate Content with Gemini Nano';
+            loadingIndicator.style.display = 'none';
+        }
+    }
+
+    // Set a default prompt and initialize UI state
+    window.onload = () => {
+        // Set default text for easy summarization testing
+        summaryInput.value = "The first mission to Mars that carried humans was launched on June 1, 2040. The crew consisted of four astronauts, chosen from a pool of over ten thousand applicants. The primary goal of the mission was to establish a preliminary research habitat and analyze the long-term feasibility of human colonization. The journey took approximately six months, during which the crew had to manage several critical system failures, including a near-catastrophic power fluctuation caused by a micrometeoroid strike. Upon arrival, the astronauts successfully deployed the solar array and began using 3D-printing technology to construct their shielded base.";
+       
+        // Initialize the UI to the default 'prompt' state
+        toggleInputFields();
+    };
+</script>
+</body>
+</html>
