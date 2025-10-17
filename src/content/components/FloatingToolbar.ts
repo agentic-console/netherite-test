@@ -42,10 +42,10 @@ export class FloatingToolbar {
         },
         { 
             id: "finder", 
-            name: "Finder", 
+            name: "Documents", 
             iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`, 
-            color: "bg-blue-500",
-            eventType: "netherite:finder-mode"
+            color: "bg-yellow-500",
+            eventType: "netherite:view-mode"
         }
     ];
 
@@ -138,6 +138,10 @@ export class FloatingToolbar {
 
                 .dock-icon.bg-green-500 {
                     background: #10b981;
+                }
+
+                .dock-icon.bg-yellow-500 {
+                    background: #f59e0b;
                 }
 
                 .dock-icon.bg-gradient-to-br {
