@@ -1,0 +1,21 @@
+# Netherite AI Assistant - Tool Documentation
+
+**Netherite** is a revolutionary Chrome extension that transforms the way users interact with web forms through intelligent automation and AI-powered assistance. Built with Chrome's native Gemini Nano AI, this tool eliminates the tedious process of manual form filling while ensuring accuracy and context-awareness.
+
+## Core Capabilities
+
+**Smart Form Detection**: Netherite automatically scans web pages to identify form fields, analyzing their context, labels, and requirements. The advanced field detection engine recognizes various input types including text fields, dropdowns, checkboxes, and text areas across different website layouts.
+
+**Document Integration**: Users can upload reference documents that serve as knowledge bases. The @doc command allows seamless integration of document content into conversations, enabling the AI to provide contextually relevant answers based on uploaded materials.
+
+**AI-Powered Analysis**: The integrated Gemini Nano AI analyzes form requirements and generates appropriate responses based on context, user documents, and intelligent field mapping. This ensures responses are relevant, accurate, and properly formatted for each specific field type.
+
+**Automated Form Filling**: Once the AI generates suitable answers, users can apply them directly to detected form fields with a single click, dramatically reducing completion time from minutes to seconds.
+
+## User Experience
+
+The tool features a modern, intuitive interface with a floating dock-style toolbar that appears with Alt+N. The glassmorphic chat panel provides a sophisticated conversation experience with auto-scroll functionality, typing indicators, and seamless document referencing.
+
+**Privacy-First Design**: All processing happens locally using Chrome's built-in AI, ensuring sensitive information never leaves the user's device. The extension works offline and maintains complete privacy while delivering powerful automation capabilities.
+
+Netherite represents the future of form interaction, combining cutting-edge AI technology with thoughtful user experience design to create a tool that's both powerful and effortless to use.
