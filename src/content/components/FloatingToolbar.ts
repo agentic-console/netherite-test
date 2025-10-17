@@ -3,12 +3,51 @@ import { ThemeManager } from '../../utils/ThemeManager';
 import { StorageManager } from '../../utils/storage';
 import { Logger } from '../../utils/logger';
 
+interface DockItem {
+    id: string;
+    name: string;
+    iconSvg: string;
+    color: string;
+    eventType: string;
+}
+
 export class FloatingToolbar {
     private element: HTMLElement | null = null;
     private shadowRoot: ShadowRoot | null = null;
     private isDragging = false;
     private dragOffset = { x: 0, y: 0 };
     private isVisible = false;
+    private mouseX = 0;
+    private dockItems: DockItem[] = [
+        { 
+            id: "scanner", 
+            name: "Scanner", 
+            iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`, 
+            color: "bg-blue-500",
+            eventType: "netherite:view-mode"
+        },
+        { 
+            id: "chat", 
+            name: "Chat", 
+            iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`, 
+            color: "bg-green-500",
+            eventType: "netherite:chat-mode"
+        },
+        { 
+            id: "voice", 
+            name: "Voice", 
+            iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`, 
+            color: "bg-gradient-to-br from-pink-500 to-purple-600",
+            eventType: "netherite:voice-mode"
+        },
+        { 
+            id: "finder", 
+            name: "Finder", 
+            iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`, 
+            color: "bg-blue-500",
+            eventType: "netherite:finder-mode"
+        }
+    ];
 
     constructor() {
         this.createElement();
@@ -17,7 +56,7 @@ export class FloatingToolbar {
     }
 
     /**
-     * Create the floating toolbar element with shadow DOM
+     * Create the floating toolbar element with dock-style design
      */
     private createElement(): void {
         // Create host element
@@ -29,8 +68,8 @@ export class FloatingToolbar {
             left: 50%;
             transform: translateX(-50%);
             z-index: ${Constants.Z_INDEX.FLOATING_TOOLBAR};
-            width: ${Constants.UI_DIMENSIONS.TOOLBAR.WIDTH}px;
-            height: ${Constants.UI_DIMENSIONS.TOOLBAR.HEIGHT}px;
+            width: auto;
+            height: auto;
             display: none;
             pointer-events: auto;
             user-select: none;
@@ -39,140 +78,260 @@ export class FloatingToolbar {
         // Create shadow DOM for style isolation
         this.shadowRoot = this.element.attachShadow({ mode: 'open' });
 
-        // Inject theme CSS
-        ThemeManager.injectThemeCSS(this.shadowRoot);
-        ThemeManager.watchThemeChanges(this.shadowRoot);
-
-        // Create toolbar content
+        // Create dock-style content
         this.shadowRoot.innerHTML = `
-            <div class="toolbar netherite-glass netherite-metallic netherite-animate-fade-in">
-                <div class="toolbar-content">
-                    <button class="toolbar-btn" id="viewBtn" title="Analyze Page (View Mode)">
-                        <span class="icon">👁️</span>
-                        <span class="label">View</span>
-                    </button>
-                    <button class="toolbar-btn" id="chatBtn" title="Open Chat Assistant">
-                        <span class="icon">💬</span>
-                        <span class="label">Chat</span>
-                    </button>
-                    <button class="toolbar-btn disabled" id="voiceBtn" title="Voice Assistant (Coming Soon)">
-                        <span class="icon">🎤</span>
-                        <span class="label">Voice</span>
-                    </button>
+            <div class="dock-container">
+                <div class="dock-toolbar" onmousemove="this.handleMouseMove(event)" onmouseleave="this.handleMouseLeave()">
+                    ${this.dockItems.map(item => this.createDockIcon(item)).join('')}
                 </div>
-                <div class="drag-handle" title="Drag to move toolbar"></div>
             </div>
 
             <style>
-                .toolbar {
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    cursor: move;
-                    position: relative;
-                    overflow: hidden;
+                * {
+                    box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 }
 
-                .toolbar-content {
+                .dock-container {
                     display: flex;
-                    align-items: center;
-                    justify-content: space-around;
-                    height: 100%;
-                    padding: 8px 12px;
-                }
-
-                .toolbar-btn {
-                    display: flex;
-                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
-                    padding: 6px 8px;
-                    border-radius: 8px;
-                    transition: all 0.2s ease;
-                    color: var(--netherite-text-primary);
-                    min-width: 50px;
+                    padding: 8px;
                 }
 
-                .toolbar-btn:hover:not(.disabled) {
-                    background: var(--netherite-hover-bg);
-                    transform: translateY(-1px);
-                }
-
-                .toolbar-btn:active:not(.disabled) {
-                    background: var(--netherite-active-bg);
-                    transform: translateY(0);
-                }
-
-                .toolbar-btn.disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .toolbar-btn .icon {
-                    font-size: 18px;
-                    margin-bottom: 2px;
-                }
-
-                .toolbar-btn .label {
-                    font-size: 10px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-
-                .toolbar-btn#viewBtn:hover:not(.disabled) .icon {
-                    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
-                }
-
-                .toolbar-btn#chatBtn:hover:not(.disabled) .icon {
-                    filter: drop-shadow(0 0 8px rgba(147, 51, 234, 0.6));
-                }
-
-                .drag-handle {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
+                .dock-toolbar {
+                    display: flex;
+                    align-items: end;
+                    gap: 16px;
+                    padding: 16px 16px 14px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(20px);
+                    border-radius: 24px;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
                     cursor: move;
-                    z-index: -1;
+                    transition: all 0.3s ease;
                 }
 
-                .toolbar.dragging {
+                .dock-toolbar.dragging {
                     transform: scale(1.05);
                     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
                 }
 
-                /* Responsive adjustments */
+                .dock-icon {
+                    aspect-ratio: 1;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    border-radius: 16px;
+                    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    width: 50px;
+                    height: 50px;
+                    overflow: hidden;
+                }
+
+                .dock-icon.bg-blue-500 {
+                    background: #3b82f6;
+                }
+
+                .dock-icon.bg-green-500 {
+                    background: #10b981;
+                }
+
+                .dock-icon.bg-gradient-to-br {
+                    background: linear-gradient(to bottom right, #ec4899, #8b5cf6);
+                }
+
+                .dock-icon .icon {
+                    width: 24px;
+                    height: 24px;
+                    color: white;
+                    transition: all 0.2s ease;
+                }
+
+                .dock-icon:hover {
+                    transform: translateY(-8px);
+                }
+
+                .dock-icon:hover .icon {
+                    transform: scale(1.1);
+                }
+
+                .dock-icon:active {
+                    transform: translateY(-6px) scale(0.95);
+                }
+
+                .dock-icon .tooltip {
+                    position: absolute;
+                    bottom: 100%;
+                    left: 50%;
+                    transform: translateX(-50%) translateY(-8px);
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: all 0.2s ease;
+                    z-index: 1000;
+                }
+
+                .dock-icon:hover .tooltip {
+                    opacity: 1;
+                    transform: translateX(-50%) translateY(-16px);
+                }
+
+                .dock-icon .shine {
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.2), transparent);
+                    border-radius: 16px;
+                    transition: opacity 0.2s ease;
+                }
+
+                .dock-icon:hover .shine {
+                    opacity: 0.4;
+                }
+
+                .dock-icon .active-dot {
+                    position: absolute;
+                    bottom: -2px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 4px;
+                    height: 4px;
+                    background: rgba(255, 255, 255, 0.8);
+                    border-radius: 50%;
+                    opacity: 0.7;
+                }
+
+                /* Animation for dock appearance */
+                .dock-toolbar {
+                    animation: dockFadeIn 0.3s ease-out;
+                }
+
+                @keyframes dockFadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                /* Responsive design */
                 @media (max-width: 768px) {
-                    .toolbar-content {
-                        padding: 6px 8px;
+                    .dock-toolbar {
+                        gap: 12px;
+                        padding: 12px;
                     }
                     
-                    .toolbar-btn {
-                        min-width: 40px;
-                        padding: 4px 6px;
+                    .dock-icon {
+                        width: 44px;
+                        height: 44px;
                     }
                     
-                    .toolbar-btn .icon {
-                        font-size: 16px;
-                    }
-                    
-                    .toolbar-btn .label {
-                        font-size: 9px;
+                    .dock-icon .icon {
+                        width: 20px;
+                        height: 20px;
                     }
                 }
             </style>
         `;
 
+        // Add event listeners after creating the DOM
+        this.setupDockEventListeners();
+
         // Append to document body
         document.body.appendChild(this.element);
 
-        Logger.ui('Floating toolbar created', 'FloatingToolbar');
+        Logger.ui('Dock-style floating toolbar created', 'FloatingToolbar');
+    }
+
+    /**
+     * Create a dock icon element
+     */
+    private createDockIcon(item: DockItem): string {
+        return `
+            <div class="dock-icon ${item.color}" data-item-id="${item.id}" data-event-type="${item.eventType}">
+                <div class="icon">${item.iconSvg}</div>
+                <div class="shine"></div>
+                <div class="tooltip">${item.name}</div>
+                <div class="active-dot"></div>
+            </div>
+        `;
+    }
+
+    /**
+     * Set up event listeners for dock icons
+     */
+    private setupDockEventListeners(): void {
+        if (!this.shadowRoot) return;
+
+        const dockIcons = this.shadowRoot.querySelectorAll('.dock-icon');
+        
+        dockIcons.forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const eventType = icon.getAttribute('data-event-type');
+                const itemId = icon.getAttribute('data-item-id');
+                
+                if (eventType) {
+                    this.handleIconClick(eventType, itemId || '');
+                }
+            });
+        });
+
+        // Add mouse tracking for hover effects
+        const dockToolbar = this.shadowRoot.querySelector('.dock-toolbar');
+        if (dockToolbar) {
+            dockToolbar.addEventListener('mousemove', (e: Event) => {
+                const mouseEvent = e as MouseEvent;
+                this.mouseX = mouseEvent.clientX;
+            });
+
+            dockToolbar.addEventListener('mouseleave', () => {
+                this.mouseX = 0;
+            });
+        }
+    }
+
+    /**
+     * Handle icon click and dispatch appropriate events
+     */
+    private handleIconClick(eventType: string, itemId: string): void {
+        Logger.ui(`Dock icon clicked: ${itemId}`, 'FloatingToolbar');
+        
+        // Dispatch the event to maintain backend compatibility
+        const event = new CustomEvent(eventType, {
+            detail: { timestamp: Date.now(), source: 'dock-toolbar' }
+        });
+        document.dispatchEvent(event);
+
+        // Update visual state
+        this.updateActiveState(itemId);
+    }
+
+    /**
+     * Update active state for clicked icon
+     */
+    private updateActiveState(activeId: string): void {
+        if (!this.shadowRoot) return;
+
+        const dockIcons = this.shadowRoot.querySelectorAll('.dock-icon');
+        dockIcons.forEach(icon => {
+            icon.classList.remove('active');
+            if (icon.getAttribute('data-item-id') === activeId) {
+                icon.classList.add('active');
+            }
+        });
     }
 
     /**
@@ -181,37 +340,15 @@ export class FloatingToolbar {
     private setupEventListeners(): void {
         if (!this.shadowRoot) return;
 
-        // Button click handlers
-        const viewBtn = this.shadowRoot.getElementById('viewBtn');
-        const chatBtn = this.shadowRoot.getElementById('chatBtn');
-        const voiceBtn = this.shadowRoot.getElementById('voiceBtn');
-
-        viewBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.handleViewClick();
-        });
-
-        chatBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.handleChatClick();
-        });
-
-        voiceBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!voiceBtn.classList.contains('disabled')) {
-                this.handleVoiceClick();
-            }
-        });
-
-        // Drag functionality
-        const toolbar = this.shadowRoot.querySelector('.toolbar') as HTMLElement;
-        if (toolbar) {
-            toolbar.addEventListener('mousedown', this.handleDragStart.bind(this));
+        // Drag functionality on the dock toolbar
+        const dockToolbar = this.shadowRoot.querySelector('.dock-toolbar') as HTMLElement;
+        if (dockToolbar) {
+            dockToolbar.addEventListener('mousedown', this.handleDragStart.bind(this));
             document.addEventListener('mousemove', this.handleDragMove.bind(this));
             document.addEventListener('mouseup', this.handleDragEnd.bind(this));
         }
 
-        // Keyboard shortcuts
+        // Keyboard shortcuts (maintain original Alt+N functionality)
         document.addEventListener('keydown', (e) => {
             if (e.altKey && e.code === 'KeyN') {
                 e.preventDefault();
@@ -219,46 +356,7 @@ export class FloatingToolbar {
             }
         });
 
-        Logger.debug('Event listeners set up for floating toolbar');
-    }
-
-    /**
-     * Handle View button click
-     */
-    private handleViewClick(): void {
-        Logger.ui('View button clicked', 'FloatingToolbar');
-        
-        // Dispatch custom event for view mode activation
-        const event = new CustomEvent('netherite:view-mode', {
-            detail: { timestamp: Date.now() }
-        });
-        document.dispatchEvent(event);
-    }
-
-    /**
-     * Handle Chat button click
-     */
-    private handleChatClick(): void {
-        Logger.ui('Chat button clicked', 'FloatingToolbar');
-        
-        // Dispatch custom event for chat mode activation
-        const event = new CustomEvent('netherite:chat-mode', {
-            detail: { timestamp: Date.now() }
-        });
-        document.dispatchEvent(event);
-    }
-
-    /**
-     * Handle Voice button click (future feature)
-     */
-    private handleVoiceClick(): void {
-        Logger.ui('Voice button clicked (not implemented)', 'FloatingToolbar');
-        
-        // Future implementation for voice assistant
-        const event = new CustomEvent('netherite:voice-mode', {
-            detail: { timestamp: Date.now() }
-        });
-        document.dispatchEvent(event);
+        Logger.debug('Event listeners set up for dock toolbar');
     }
 
     /**
@@ -275,12 +373,12 @@ export class FloatingToolbar {
             y: e.clientY - rect.top
         };
 
-        const toolbar = this.shadowRoot?.querySelector('.toolbar') as HTMLElement;
-        toolbar?.classList.add('dragging');
+        const dockToolbar = this.shadowRoot?.querySelector('.dock-toolbar') as HTMLElement;
+        dockToolbar?.classList.add('dragging');
 
         document.body.style.cursor = 'move';
         
-        Logger.debug('Drag started');
+        Logger.debug('Dock drag started');
     }
 
     /**
@@ -314,8 +412,8 @@ export class FloatingToolbar {
 
         this.isDragging = false;
         
-        const toolbar = this.shadowRoot?.querySelector('.toolbar') as HTMLElement;
-        toolbar?.classList.remove('dragging');
+        const dockToolbar = this.shadowRoot?.querySelector('.dock-toolbar') as HTMLElement;
+        dockToolbar?.classList.remove('dragging');
 
         document.body.style.cursor = '';
 
@@ -323,7 +421,7 @@ export class FloatingToolbar {
         const rect = this.element.getBoundingClientRect();
         StorageManager.saveToolbarPosition(rect.left, rect.top);
 
-        Logger.debug('Drag ended, position saved');
+        Logger.debug('Dock drag ended, position saved');
     }
 
     /**
@@ -352,11 +450,11 @@ export class FloatingToolbar {
 
         // Trigger fade-in animation
         setTimeout(() => {
-            const toolbar = this.shadowRoot?.querySelector('.toolbar') as HTMLElement;
-            toolbar?.classList.add('netherite-animate-fade-in');
+            const dockToolbar = this.shadowRoot?.querySelector('.dock-toolbar') as HTMLElement;
+            dockToolbar?.classList.add('dock-animate-fade-in');
         }, 10);
 
-        Logger.ui('Floating toolbar shown', 'FloatingToolbar');
+        Logger.ui('Dock toolbar shown', 'FloatingToolbar');
     }
 
     /**
@@ -368,7 +466,7 @@ export class FloatingToolbar {
         this.element.style.display = 'none';
         this.isVisible = false;
 
-        Logger.ui('Floating toolbar hidden', 'FloatingToolbar');
+        Logger.ui('Dock toolbar hidden', 'FloatingToolbar');
     }
 
     /**
@@ -392,17 +490,8 @@ export class FloatingToolbar {
     /**
      * Update button states based on current mode
      */
-    updateButtonStates(activeMode: 'view' | 'chat' | 'voice' | null): void {
-        if (!this.shadowRoot) return;
-
-        const buttons = this.shadowRoot.querySelectorAll('.toolbar-btn');
-        buttons.forEach(btn => btn.classList.remove('active'));
-
-        if (activeMode) {
-            const activeBtn = this.shadowRoot.getElementById(`${activeMode}Btn`);
-            activeBtn?.classList.add('active');
-        }
-
+    updateButtonStates(activeMode: 'scanner' | 'chat' | 'voice' | 'finder' | null): void {
+        this.updateActiveState(activeMode || '');
         Logger.debug('Button states updated', { activeMode });
     }
 
@@ -411,12 +500,11 @@ export class FloatingToolbar {
      */
     destroy(): void {
         if (this.element) {
-            ThemeManager.removeObserver(this.shadowRoot!);
             document.body.removeChild(this.element);
             this.element = null;
             this.shadowRoot = null;
         }
 
-        Logger.ui('Floating toolbar destroyed', 'FloatingToolbar');
+        Logger.ui('Dock toolbar destroyed', 'FloatingToolbar');
     }
 }
