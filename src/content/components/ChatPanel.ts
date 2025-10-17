@@ -622,27 +622,6 @@ export class ChatPanel {
                     padding: 4px 4px 4px 16px;
                     transition: border-color 0.2s ease;
                 }
-
-                .input-container:focus-within {
-                    border-color: #667eea;
-                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-                }
-
-                #chatInput {
-                    flex: 1;
-                    min-height: 20px;
-                    max-height: 120px;
-                    padding: 12px 0;
-                    border: none;
-                    background: transparent;
-                    color: #1e293b;
-                    font-family: inherit;
-                    font-size: 14px;
-                    line-height: 1.5;
-                    resize: none;
-                    outline: none;
-                }
-
                 #chatInput::placeholder {
                     color: #94a3b8;
                 }
