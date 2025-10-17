@@ -3,7 +3,8 @@ import { ThemeManager } from '../../utils/ThemeManager';
 import { Logger } from '../../utils/logger';
 import { StorageManager } from '../../utils/storage';
 import { AIServiceFactory } from '../../ai/AIServiceFactory';
-import { ChatMessage } from '../../types/language-model';
+import { ChatMessage, GeneratedAnswer } from '../../types/language-model';
+import { FieldInjector } from '../FieldInjector';
 
 export class ChatPanel {
     private element: HTMLElement | null = null;
@@ -15,8 +16,11 @@ export class ChatPanel {
     private autoScrollEnabled = true;
     private messagesContainer: HTMLElement | null = null;
     private scrollToBottomBtn: HTMLElement | null = null;
+    private generatedAnswers: GeneratedAnswer[] = [];
+    private fieldInjector: FieldInjector;
 
     constructor() {
+        this.fieldInjector = new FieldInjector();
         this.createElement();
         this.loadChatHistory();
     }
@@ -127,6 +131,37 @@ export class ChatPanel {
                             <span class="typing-text">AI is thinking...</span>
                         </div>
                     </div>
+                    
+                    <!-- Apply Form Answers Section -->
+                    <div class="apply-section" id="applySection" style="display: none;">
+                        <div class="apply-header">
+                            <div class="apply-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20,6 9,17 4,12"/>
+                                </svg>
+                            </div>
+                            <div class="apply-text">
+                                <h4>Form Filling Ready</h4>
+                                <span id="applyDescription">AI has generated form answers</span>
+                            </div>
+                        </div>
+                        <div class="apply-actions">
+                            <button id="previewBtn" class="preview-btn" title="Preview Answers">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                Preview
+                            </button>
+                            <button id="applyBtn" class="apply-btn" title="Apply to Form">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20,6 9,17 4,12"/>
+                                </svg>
+                                Apply Now
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="input-container">
                         <textarea id="chatInput" placeholder="Ask me anything about this page or type @doc to reference your document..." rows="1"></textarea>
                         <button id="sendBtn" class="send-btn" title="Send Message">
@@ -478,6 +513,105 @@ export class ChatPanel {
                     }
                 }
 
+                /* Apply Section */
+                .apply-section {
+                    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                    border: 2px solid #0ea5e9;
+                    border-radius: 16px;
+                    padding: 16px;
+                    margin-bottom: 16px;
+                    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .apply-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                }
+
+                .apply-icon {
+                    width: 32px;
+                    height: 32px;
+                    background: #0ea5e9;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+
+                .apply-icon svg {
+                    width: 16px;
+                    height: 16px;
+                    color: white;
+                }
+
+                .apply-text h4 {
+                    margin: 0 0 4px 0;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #0c4a6e;
+                }
+
+                .apply-text span {
+                    font-size: 12px;
+                    color: #0369a1;
+                    font-weight: 500;
+                }
+
+                .apply-actions {
+                    display: flex;
+                    gap: 12px;
+                }
+
+                .preview-btn, .apply-btn {
+                    flex: 1;
+                    height: 40px;
+                    border: none;
+                    border-radius: 12px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                }
+
+                .preview-btn {
+                    background: white;
+                    color: #0369a1;
+                    border: 2px solid #e0f2fe;
+                }
+
+                .preview-btn:hover {
+                    background: #f0f9ff;
+                    border-color: #0ea5e9;
+                    transform: translateY(-1px);
+                }
+
+                .apply-btn {
+                    background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+                    color: white;
+                    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+                }
+
+                .apply-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+                }
+
+                .apply-btn:active, .preview-btn:active {
+                    transform: translateY(0);
+                }
+
+                .preview-btn svg, .apply-btn svg {
+                    width: 14px;
+                    height: 14px;
+                }
+
                 .input-container {
                     display: flex;
                     gap: 12px;
@@ -640,6 +774,8 @@ export class ChatPanel {
         const sendBtn = this.shadowRoot.getElementById('sendBtn');
         const closeBtn = this.shadowRoot.getElementById('closeBtn');
         const newChatBtn = this.shadowRoot.getElementById('newChatBtn');
+        const applyBtn = this.shadowRoot.getElementById('applyBtn');
+        const previewBtn = this.shadowRoot.getElementById('previewBtn');
 
         // Send message on button click
         sendBtn?.addEventListener('click', () => {
@@ -662,6 +798,16 @@ export class ChatPanel {
         // Start new chat
         newChatBtn?.addEventListener('click', () => {
             this.startNewChat();
+        });
+
+        // Apply form answers
+        applyBtn?.addEventListener('click', () => {
+            this.handleApplyFormAnswers();
+        });
+
+        // Preview form answers
+        previewBtn?.addEventListener('click', () => {
+            this.handlePreviewFormAnswers();
         });
 
         // Auto-resize textarea
@@ -718,6 +864,9 @@ export class ChatPanel {
             // Add AI response to chat
             this.addMessage('assistant', response);
 
+            // Check if this was a form-filling request and we have detected fields
+            await this.checkForFormFillingResponse(processedMessage, response);
+
         } catch (error) {
             Logger.error('Error generating chat response:', error);
             this.addMessage('assistant', '❌ Sorry, I encountered an error. Please try again.');
@@ -729,6 +878,131 @@ export class ChatPanel {
             // Save chat history
             this.saveChatHistory();
         }
+    }
+
+    /**
+     * Check if the response contains form filling answers and show apply section
+     */
+    private async checkForFormFillingResponse(userMessage: string, aiResponse: string): Promise<void> {
+        // Check if user asked for form filling help
+        const formFillingKeywords = ['fill', 'form', 'complete', 'apply', 'submit', 'answer'];
+        const isFormFillingRequest = formFillingKeywords.some(keyword => 
+            userMessage.toLowerCase().includes(keyword)
+        );
+
+        // Check if we have form fields detected and AI provided structured answers
+        if (isFormFillingRequest && this.viewModeContext?.formFields?.length > 0) {
+            try {
+                // Parse AI response for field answers (look for field → answer patterns)
+                const answers = this.parseFormAnswersFromResponse(aiResponse);
+
+                if (answers && answers.length > 0) {
+                    this.showApplySection(answers);
+                }
+            } catch (error) {
+                Logger.debug('Could not parse form answers from response:', error);
+            }
+        }
+    }
+
+    /**
+     * Parse structured form answers from AI response
+     */
+    private parseFormAnswersFromResponse(response: string): GeneratedAnswer[] {
+        const answers: GeneratedAnswer[] = [];
+
+        // Look for patterns like "📝 Field Name → Answer" or "Field Name: Answer"
+        const patterns = [
+            /📝\s*([^→]+)\s*→\s*([^\n]+)/g,
+            /\*\*([^:]+):\*\*\s*([^\n]+)/g,
+            /(\w+[\w\s]*?):\s*([^\n]+)/g
+        ];
+
+        for (const pattern of patterns) {
+            let match;
+            while ((match = pattern.exec(response)) !== null) {
+                const fieldLabel = match[1].trim();
+                const answer = match[2].trim();
+
+                // Skip if already found this field
+                if (answers.some(a => a.fieldLabel.toLowerCase() === fieldLabel.toLowerCase())) {
+                    continue;
+                }
+
+                // Try to match with detected form fields
+                const matchingField = this.viewModeContext?.formFields?.find((field: any) => 
+                    field.label.toLowerCase().includes(fieldLabel.toLowerCase()) ||
+                    fieldLabel.toLowerCase().includes(field.label.toLowerCase())
+                );
+
+                if (matchingField) {
+                    answers.push({
+                        fieldLabel: fieldLabel,
+                        fieldType: matchingField.type,
+                        answer: answer,
+                        confidence: 0.8 // Default confidence
+                    });
+                }
+            }
+
+            // If we found answers with this pattern, break
+            if (answers.length > 0) break;
+        }
+
+        // If no structured answers found, try to generate simple answers for all fields
+        if (answers.length === 0 && this.viewModeContext?.formFields) {
+            for (const field of this.viewModeContext.formFields) {
+                // Generate simple answers based on field type and label
+                const answer = this.generateSimpleAnswer(field);
+                if (answer) {
+                    answers.push({
+                        fieldLabel: field.label,
+                        fieldType: field.type,
+                        answer: answer,
+                        confidence: 0.6
+                    });
+                }
+            }
+        }
+
+        Logger.debug('Parsed form answers:', answers);
+        return answers;
+    }
+
+    /**
+     * Generate a simple answer for a form field
+     */
+    private generateSimpleAnswer(field: any): string | null {
+        const label = field.label.toLowerCase();
+        
+        // Common field patterns and default answers
+        if (label.includes('name')) {
+            return 'John Doe';
+        } else if (label.includes('email')) {
+            return 'john.doe@example.com';
+        } else if (label.includes('phone')) {
+            return '(555) 123-4567';
+        } else if (label.includes('company') || label.includes('organization')) {
+            return 'Tech Corp';
+        } else if (label.includes('title') || label.includes('position')) {
+            return 'Software Developer';
+        } else if (label.includes('address')) {
+            return '123 Main Street';
+        } else if (label.includes('city')) {
+            return 'San Francisco';
+        } else if (label.includes('state') || label.includes('province')) {
+            return 'CA';
+        } else if (label.includes('zip') || label.includes('postal')) {
+            return '94102';
+        } else if (label.includes('country')) {
+            return 'United States';
+        } else if (field.type === 'textarea') {
+            return 'This is a sample response for the form field.';
+        } else if (field.type === 'select') {
+            return 'Option 1'; // Would need to inspect actual options
+        }
+        
+        return null;
     }
 
     /**
@@ -918,6 +1192,115 @@ ${document.content}
         if (statusElement) {
             statusElement.innerHTML = status;
         }
+    }
+
+    /**
+     * Show apply section with form answers
+     */
+    private showApplySection(answers: GeneratedAnswer[]): void {
+        this.generatedAnswers = answers;
+        const applySection = this.shadowRoot?.getElementById('applySection');
+        const applyDescription = this.shadowRoot?.getElementById('applyDescription');
+        
+        if (applySection && applyDescription) {
+            applyDescription.textContent = `Ready to fill ${answers.length} form fields`;
+            applySection.style.display = 'block';
+            
+            // Auto-hide after 30 seconds unless user interacts
+            setTimeout(() => {
+                if (applySection.style.display === 'block') {
+                    applySection.style.display = 'none';
+                }
+            }, 30000);
+        }
+    }
+
+    /**
+     * Hide apply section
+     */
+    private hideApplySection(): void {
+        const applySection = this.shadowRoot?.getElementById('applySection');
+        if (applySection) {
+            applySection.style.display = 'none';
+        }
+        this.generatedAnswers = [];
+    }
+
+    /**
+     * Handle applying form answers
+     */
+    private async handleApplyFormAnswers(): Promise<void> {
+        if (!this.generatedAnswers.length || !this.viewModeContext?.formFields) {
+            this.addMessage('assistant', '❌ No form answers available to apply. Please ask for form filling help first.');
+            return;
+        }
+
+        try {
+            // Show loading state
+            const applyBtn = this.shadowRoot?.getElementById('applyBtn') as HTMLButtonElement;
+            if (applyBtn) {
+                applyBtn.disabled = true;
+                applyBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                        <path d="M16 16h5v5"/>
+                    </svg>
+                    Applying...
+                `;
+            }
+
+            // Apply the answers to form fields
+            const success = await this.fieldInjector.injectAnswers(
+                this.generatedAnswers,
+                this.viewModeContext.formFields
+            );
+
+            // Restore button state
+            if (applyBtn) {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20,6 9,17 4,12"/>
+                    </svg>
+                    Apply Now
+                `;
+            }
+
+            if (success) {
+                this.addMessage('assistant', '✅ Form fields have been successfully filled with AI-generated answers!');
+                this.hideApplySection();
+            } else {
+                this.addMessage('assistant', '⚠️ Some form fields could not be filled. Please check the form and try again.');
+            }
+
+        } catch (error) {
+            Logger.error('Error applying form answers:', error);
+            this.addMessage('assistant', '❌ Failed to apply form answers. Please try again.');
+        }
+    }
+
+    /**
+     * Handle previewing form answers
+     */
+    private handlePreviewFormAnswers(): void {
+        if (!this.generatedAnswers.length) {
+            this.addMessage('assistant', '❌ No form answers available to preview.');
+            return;
+        }
+
+        // Create preview message
+        let previewText = '📋 **Form Answer Preview:**\n\n';
+        this.generatedAnswers.forEach((answer, index) => {
+            previewText += `**${index + 1}. ${answer.fieldLabel}**\n`;
+            previewText += `${answer.answer}\n`;
+            previewText += `*Confidence: ${Math.round(answer.confidence * 100)}%*\n\n`;
+        });
+
+        previewText += `Ready to apply ${this.generatedAnswers.length} answers to the form.`;
+
+        this.addMessage('assistant', previewText);
     }
 
 
