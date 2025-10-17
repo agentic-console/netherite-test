@@ -184,7 +184,7 @@ class NetheriteContentScript {
             }
 
             // Update toolbar button states
-            this.floatingToolbar?.updateButtonStates('view');
+            this.floatingToolbar?.updateButtonStates('scanner');
 
             // Start page analysis
             await this.viewModeScanner.scanPage();

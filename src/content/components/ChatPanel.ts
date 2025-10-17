@@ -11,6 +11,10 @@ export class ChatPanel {
     private chatHistory: ChatMessage[] = [];
     private isVisible = false;
     private viewModeContext: any = null;
+    private isAtBottom = true;
+    private autoScrollEnabled = true;
+    private messagesContainer: HTMLElement | null = null;
+    private scrollToBottomBtn: HTMLElement | null = null;
 
     constructor() {
         this.createElement();
@@ -18,7 +22,7 @@ export class ChatPanel {
     }
 
     /**
-     * Create the chat panel with glassmorphic design
+     * Create the modern chat panel with enhanced UX
      */
     private createElement(): void {
         this.element = document.createElement('div');
@@ -28,8 +32,8 @@ export class ChatPanel {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: ${Constants.UI_DIMENSIONS.CHAT_PANEL.WIDTH}px;
-            height: ${Constants.UI_DIMENSIONS.CHAT_PANEL.HEIGHT}px;
+            width: min(90vw, ${Constants.UI_DIMENSIONS.CHAT_PANEL.WIDTH}px);
+            height: min(85vh, ${Constants.UI_DIMENSIONS.CHAT_PANEL.HEIGHT}px);
             z-index: ${Constants.Z_INDEX.CHAT_PANEL};
             display: none;
             pointer-events: auto;
@@ -37,67 +41,139 @@ export class ChatPanel {
 
         // Create shadow DOM
         this.shadowRoot = this.element.attachShadow({ mode: 'open' });
-        
-        // Inject theme CSS
-        ThemeManager.injectThemeCSS(this.shadowRoot);
-        ThemeManager.watchThemeChanges(this.shadowRoot);
 
-        // Create chat interface
+        // Create modern chat interface
         this.shadowRoot.innerHTML = `
-            <div class="chat-panel netherite-glass netherite-animate-slide-up">
+            <div class="chat-panel">
                 <div class="chat-header">
                     <div class="header-content">
-                        <h2>💬 Netherite Assistant</h2>
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                </svg>
+                            </div>
+                            <div class="title-text">
+                                <h2>Netherite Assistant</h2>
+                                <span class="subtitle">AI-Powered Chat</span>
+                            </div>
+                        </div>
                         <div class="header-actions">
                             <button id="newChatBtn" class="header-btn" title="Start New Chat">
-                                🔄
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                                    <path d="M16 16h5v5"/>
+                                </svg>
                             </button>
                             <button id="closeBtn" class="header-btn close" title="Close Chat">
-                                ×
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="chat-messages" id="chatMessages">
-                    <div class="welcome-message">
-                        <p>👋 Welcome to Netherite AI Assistant!</p>
-                        <p>I can help you analyze this page and fill forms intelligently.</p>
-                        <p>Type your message or use <strong>@doc</strong> to reference your uploaded document.</p>
+                <div class="chat-messages-wrapper">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="welcome-message">
+                            <div class="welcome-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M7 9a2 2 0 1 1 4 0v5a2 2 0 0 1-4 0V9z"/>
+                                    <path d="M17 9a2 2 0 1 1 4 0v5a2 2 0 0 1-4 0V9z"/>
+                                    <path d="M7 9V6a7 7 0 0 1 14 0v4.5"/>
+                                    <path d="M7 13.5v3a7 7 0 0 0 14 0v-4"/>
+                                </svg>
+                            </div>
+                            <h3>Welcome to Netherite AI Assistant!</h3>
+                            <p>I can help you analyze this page and fill forms intelligently.</p>
+                            <div class="features-list">
+                                <div class="feature">
+                                    <span class="feature-icon">🔍</span>
+                                    <span>Type your message to start a conversation</span>
+                                </div>
+                                <div class="feature">
+                                    <span class="feature-icon">📄</span>
+                                    <span>Use <strong>@doc</strong> to reference your uploaded document</span>
+                                </div>
+                                <div class="feature">
+                                    <span class="feature-icon">⚡</span>
+                                    <span>Get instant AI-powered assistance</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <button id="scrollToBottomBtn" class="scroll-to-bottom" style="display: none;" title="Scroll to bottom">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="7,13 12,18 17,13"/>
+                            <polyline points="7,6 12,11 17,6"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="chat-input-area">
-                    <div class="input-container">
-                        <textarea id="chatInput" placeholder="Ask me anything about this page or type @doc to reference your document..."></textarea>
-                        <button id="sendBtn" class="send-btn" title="Send Message">
-                            <span class="send-icon">➤</span>
-                        </button>
-                    </div>
-                    <div class="input-footer">
+                    <div class="input-status">
                         <div class="document-status" id="documentStatus"></div>
                         <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                            <span class="dot"></span>
-                            <span class="dot"></span>
-                            <span class="dot"></span>
-                            AI is thinking...
+                            <div class="typing-dots">
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                            </div>
+                            <span class="typing-text">AI is thinking...</span>
                         </div>
+                    </div>
+                    <div class="input-container">
+                        <textarea id="chatInput" placeholder="Ask me anything about this page or type @doc to reference your document..." rows="1"></textarea>
+                        <button id="sendBtn" class="send-btn" title="Send Message">
+                            <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
 
             <style>
+                * {
+                    box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                }
+
                 .chat-panel {
                     width: 100%;
                     height: 100%;
                     display: flex;
                     flex-direction: column;
+                    background: #ffffff;
+                    border-radius: 16px;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                    border: 1px solid rgba(0, 0, 0, 0.05);
                     overflow: hidden;
+                    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 }
 
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px) scale(0.95);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
+                }
+
+                /* Header Styling */
                 .chat-header {
-                    padding: 20px 24px 16px;
-                    border-bottom: 1px solid var(--netherite-border);
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 20px 24px;
                     flex-shrink: 0;
                 }
 
@@ -107,11 +183,28 @@ export class ChatPanel {
                     align-items: center;
                 }
 
-                .header-content h2 {
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .title-icon svg {
+                    width: 24px;
+                    height: 24px;
+                }
+
+                .title-text h2 {
                     margin: 0;
                     font-size: 18px;
                     font-weight: 600;
-                    color: var(--netherite-text-primary);
+                    line-height: 1.2;
+                }
+
+                .subtitle {
+                    font-size: 12px;
+                    opacity: 0.8;
+                    font-weight: 400;
                 }
 
                 .header-actions {
@@ -120,172 +213,250 @@ export class ChatPanel {
                 }
 
                 .header-btn {
-                    width: 32px;
-                    height: 32px;
+                    width: 36px;
+                    height: 36px;
                     border: none;
-                    border-radius: 50%;
-                    background: var(--netherite-hover-bg);
-                    color: var(--netherite-text-secondary);
-                    font-size: 16px;
+                    border-radius: 8px;
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    backdrop-filter: blur(10px);
+                }
+
+                .header-btn svg {
+                    width: 16px;
+                    height: 16px;
                 }
 
                 .header-btn:hover {
-                    background: var(--netherite-active-bg);
-                    color: var(--netherite-text-primary);
+                    background: rgba(255, 255, 255, 0.2);
                     transform: scale(1.05);
                 }
 
-                .chat-messages {
+                .header-btn:active {
+                    transform: scale(0.95);
+                }
+
+                /* Messages Area */
+                .chat-messages-wrapper {
                     flex: 1;
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .chat-messages {
+                    height: 100%;
                     overflow-y: auto;
-                    padding: 16px 24px;
+                    padding: 24px;
                     display: flex;
                     flex-direction: column;
                     gap: 16px;
+                    scroll-behavior: smooth;
                 }
 
+                .chat-messages::-webkit-scrollbar {
+                    width: 6px;
+                }
+
+                .chat-messages::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                }
+
+                .chat-messages::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 3px;
+                }
+
+                .chat-messages::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                }
+
+                /* Welcome Message */
                 .welcome-message {
                     text-align: center;
-                    color: var(--netherite-text-secondary);
-                    padding: 20px;
-                    background: var(--netherite-bg-secondary);
-                    border-radius: 12px;
-                    font-size: 14px;
-                    line-height: 1.5;
+                    padding: 32px 24px;
+                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                    border-radius: 16px;
+                    border: 1px solid #e2e8f0;
+                }
+
+                .welcome-icon svg {
+                    width: 48px;
+                    height: 48px;
+                    color: #667eea;
+                    margin-bottom: 16px;
+                }
+
+                .welcome-message h3 {
+                    margin: 0 0 8px 0;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #1e293b;
                 }
 
                 .welcome-message p {
-                    margin: 8px 0;
+                    margin: 0 0 20px 0;
+                    color: #64748b;
+                    font-size: 14px;
+                    line-height: 1.5;
                 }
 
+                .features-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    text-align: left;
+                    max-width: 320px;
+                    margin: 0 auto;
+                }
+
+                .feature {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    background: white;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                }
+
+                .feature-icon {
+                    font-size: 16px;
+                    flex-shrink: 0;
+                }
+
+                .feature span:last-child {
+                    font-size: 13px;
+                    color: #475569;
+                    line-height: 1.4;
+                }
+
+                /* Chat Messages */
                 .message {
-                    max-width: 80%;
-                    padding: 12px 16px;
-                    border-radius: 16px;
+                    max-width: 75%;
+                    padding: 16px 20px;
+                    border-radius: 20px;
                     font-size: 14px;
                     line-height: 1.5;
                     word-wrap: break-word;
+                    position: relative;
+                    animation: messageSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                @keyframes messageSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px) scale(0.95);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
                 }
 
                 .message.user {
                     align-self: flex-end;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                    border-bottom-right-radius: 6px;
+                    border-bottom-right-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
                 }
 
                 .message.assistant {
                     align-self: flex-start;
-                    background: var(--netherite-glass-bg);
-                    border: 1px solid var(--netherite-glass-border);
-                    color: var(--netherite-text-primary);
-                    border-bottom-left-radius: 6px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    color: #1e293b;
+                    border-bottom-left-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                }
+
+                .message .content {
+                    margin-bottom: 4px;
                 }
 
                 .message .timestamp {
                     font-size: 11px;
                     opacity: 0.7;
-                    margin-top: 4px;
+                    font-weight: 500;
                 }
 
-                .chat-input-area {
-                    padding: 16px 24px 20px;
-                    border-top: 1px solid var(--netherite-border);
-                    flex-shrink: 0;
-                }
-
-                .input-container {
-                    display: flex;
-                    gap: 8px;
-                    align-items: flex-end;
-                }
-
-                #chatInput {
-                    flex: 1;
-                    min-height: 40px;
-                    max-height: 120px;
-                    padding: 12px 16px;
-                    border: 1px solid var(--netherite-border);
-                    border-radius: 20px;
-                    background: var(--netherite-bg-secondary);
-                    color: var(--netherite-text-primary);
-                    font-family: inherit;
-                    font-size: 14px;
-                    resize: none;
-                    outline: none;
-                    transition: all 0.2s ease;
-                }
-
-                #chatInput:focus {
-                    border-color: var(--netherite-text-accent);
-                    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-                }
-
-                .send-btn {
+                /* Scroll to Bottom Button */
+                .scroll-to-bottom {
+                    position: absolute;
+                    bottom: 16px;
+                    left: 50%;
+                    transform: translateX(-50%);
                     width: 40px;
                     height: 40px;
                     border: none;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: #667eea;
                     color: white;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                 }
 
-                .send-btn:hover {
-                    transform: scale(1.05);
-                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                .scroll-to-bottom svg {
+                    width: 16px;
+                    height: 16px;
                 }
 
-                .send-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                    transform: none;
+                .scroll-to-bottom:hover {
+                    transform: translateX(-50%) scale(1.1);
+                    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
                 }
 
-                .input-footer {
+                /* Input Area */
+                .chat-input-area {
+                    padding: 16px 24px 24px;
+                    border-top: 1px solid #e2e8f0;
+                    background: #fafbfc;
+                    flex-shrink: 0;
+                }
+
+                .input-status {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-top: 8px;
+                    margin-bottom: 12px;
                     min-height: 20px;
                 }
 
                 .document-status {
                     font-size: 12px;
-                    color: var(--netherite-text-secondary);
-                }
-
-                .document-chip {
-                    display: inline-flex;
-                    align-items: center;
-                    background: var(--netherite-text-accent);
-                    color: white;
-                    padding: 4px 8px;
-                    border-radius: 12px;
-                    font-size: 11px;
-                    gap: 4px;
+                    color: #64748b;
+                    font-weight: 500;
                 }
 
                 .typing-indicator {
                     display: flex;
                     align-items: center;
-                    gap: 4px;
-                    color: var(--netherite-text-secondary);
+                    gap: 8px;
+                    color: #667eea;
                     font-size: 12px;
+                    font-weight: 500;
+                }
+
+                .typing-dots {
+                    display: flex;
+                    gap: 4px;
                 }
 
                 .typing-indicator .dot {
                     width: 4px;
                     height: 4px;
                     border-radius: 50%;
-                    background: var(--netherite-text-accent);
-                    animation: typing-pulse 1.4s infinite ease-in-out;
+                    background: #667eea;
+                    animation: typingPulse 1.4s infinite ease-in-out;
                 }
 
                 .typing-indicator .dot:nth-child(2) {
@@ -296,7 +467,7 @@ export class ChatPanel {
                     animation-delay: 0.4s;
                 }
 
-                @keyframes typing-pulse {
+                @keyframes typingPulse {
                     0%, 60%, 100% {
                         opacity: 0.3;
                         transform: scale(0.8);
@@ -307,23 +478,145 @@ export class ChatPanel {
                     }
                 }
 
-                /* Scrollbar styling */
-                .chat-messages::-webkit-scrollbar {
-                    width: 6px;
+                .input-container {
+                    display: flex;
+                    gap: 12px;
+                    align-items: flex-end;
+                    background: white;
+                    border: 2px solid #e2e8f0;
+                    border-radius: 16px;
+                    padding: 4px 4px 4px 16px;
+                    transition: border-color 0.2s ease;
                 }
 
-                .chat-messages::-webkit-scrollbar-track {
-                    background: var(--netherite-bg-secondary);
-                    border-radius: 3px;
+                .input-container:focus-within {
+                    border-color: #667eea;
+                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
                 }
 
-                .chat-messages::-webkit-scrollbar-thumb {
-                    background: var(--netherite-text-secondary);
-                    border-radius: 3px;
+                #chatInput {
+                    flex: 1;
+                    min-height: 20px;
+                    max-height: 120px;
+                    padding: 12px 0;
+                    border: none;
+                    background: transparent;
+                    color: #1e293b;
+                    font-family: inherit;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    resize: none;
+                    outline: none;
                 }
 
-                .chat-messages::-webkit-scrollbar-thumb:hover {
-                    background: var(--netherite-text-primary);
+                #chatInput::placeholder {
+                    color: #94a3b8;
+                }
+
+                .send-btn {
+                    width: 40px;
+                    height: 40px;
+                    border: none;
+                    border-radius: 12px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    cursor: pointer;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+
+                .send-btn svg {
+                    width: 18px;
+                    height: 18px;
+                }
+
+                .send-btn:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                }
+
+                .send-btn:active {
+                    transform: scale(0.95);
+                }
+
+                .send-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+
+                /* Dark mode support */
+                @media (prefers-color-scheme: dark) {
+                    .chat-panel {
+                        background: #1e293b;
+                        border: 1px solid #334155;
+                    }
+
+                    .welcome-message {
+                        background: linear-gradient(135deg, #334155 0%, #475569 100%);
+                        border: 1px solid #475569;
+                    }
+
+                    .welcome-message h3 {
+                        color: #f1f5f9;
+                    }
+
+                    .welcome-message p {
+                        color: #cbd5e1;
+                    }
+
+                    .feature {
+                        background: #475569;
+                        border: 1px solid #64748b;
+                        color: #f1f5f9;
+                    }
+
+                    .message.assistant {
+                        background: #334155;
+                        border: 1px solid #475569;
+                        color: #f1f5f9;
+                    }
+
+                    .chat-input-area {
+                        background: #334155;
+                        border-top: 1px solid #475569;
+                    }
+
+                    .input-container {
+                        background: #475569;
+                        border: 2px solid #64748b;
+                    }
+
+                    #chatInput {
+                        color: #f1f5f9;
+                    }
+
+                    #chatInput::placeholder {
+                        color: #94a3b8;
+                    }
+                }
+
+                /* Responsive design */
+                @media (max-width: 768px) {
+                    .chat-messages {
+                        padding: 16px;
+                    }
+
+                    .message {
+                        max-width: 85%;
+                        padding: 12px 16px;
+                    }
+
+                    .welcome-message {
+                        padding: 24px 20px;
+                    }
+
+                    .features-list {
+                        max-width: 100%;
+                    }
                 }
             </style>
         `;
@@ -375,6 +668,9 @@ export class ChatPanel {
         chatInput?.addEventListener('input', () => {
             this.autoResizeTextarea(chatInput);
         });
+
+        // Setup auto-scroll functionality
+        this.setupAutoScroll();
 
         // Close on escape key
         document.addEventListener('keydown', (e) => {
@@ -497,8 +793,12 @@ ${document.content}
         };
         this.chatHistory.push(message);
 
-        // Scroll to bottom
-        this.scrollToBottom();
+        // Auto scroll to bottom if enabled
+        if (this.autoScrollEnabled) {
+            setTimeout(() => {
+                this.scrollToBottom(true);
+            }, 100);
+        }
 
         Logger.ui(`Message added: ${role}`, 'ChatPanel');
     }
@@ -520,6 +820,74 @@ ${document.content}
     private autoResizeTextarea(textarea: HTMLTextAreaElement): void {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+
+    /**
+     * Setup auto-scroll functionality
+     */
+    private setupAutoScroll(): void {
+        if (!this.shadowRoot) return;
+
+        this.messagesContainer = this.shadowRoot.getElementById('chatMessages');
+        this.scrollToBottomBtn = this.shadowRoot.getElementById('scrollToBottomBtn');
+
+        if (this.messagesContainer) {
+            // Monitor scroll position
+            this.messagesContainer.addEventListener('scroll', () => {
+                this.updateScrollState();
+            });
+
+            // Disable auto scroll on user scroll
+            this.messagesContainer.addEventListener('wheel', () => {
+                this.autoScrollEnabled = false;
+            });
+
+            this.messagesContainer.addEventListener('touchmove', () => {
+                this.autoScrollEnabled = false;
+            });
+        }
+
+        // Scroll to bottom button click
+        this.scrollToBottomBtn?.addEventListener('click', () => {
+            this.scrollToBottom(true);
+            this.autoScrollEnabled = true;
+        });
+    }
+
+    /**
+     * Update scroll state and button visibility
+     */
+    private updateScrollState(): void {
+        if (!this.messagesContainer || !this.scrollToBottomBtn) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = this.messagesContainer;
+        const threshold = 100; // Show button when 100px from bottom
+        
+        this.isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+
+        // Show/hide scroll to bottom button
+        if (this.isAtBottom) {
+            this.scrollToBottomBtn.style.display = 'none';
+            this.autoScrollEnabled = true;
+        } else {
+            this.scrollToBottomBtn.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Scroll to bottom with optional smooth behavior
+     */
+    private scrollToBottom(smooth: boolean = false): void {
+        if (!this.messagesContainer) return;
+
+        if (smooth) {
+            this.messagesContainer.scrollTo({
+                top: this.messagesContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        } else {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
     }
 
     /**
@@ -552,15 +920,7 @@ ${document.content}
         }
     }
 
-    /**
-     * Scroll chat to bottom
-     */
-    private scrollToBottom(): void {
-        const chatMessages = this.shadowRoot?.getElementById('chatMessages');
-        if (chatMessages) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    }
+
 
     /**
      * Start a new chat conversation
